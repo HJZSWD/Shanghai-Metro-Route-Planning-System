@@ -1,0 +1,8 @@
+*.exe
+*.obj
+*.lib
+.vscode/
+.trae/
+__pycache__/
+~$*.docx
+用户AI对话记录.md
