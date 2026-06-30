@@ -4,6 +4,7 @@
 
 # --- 编译产物 ---
 *.exe
+!backend-service.exe
 *.o
 *.obj
 *.lib
@@ -38,3 +39,6 @@ Thumbs.db
 
 # --- 个人记录 ---
 用户AI对话记录.md
+
+# --- 文档目录（不推送） ---
+docs/
