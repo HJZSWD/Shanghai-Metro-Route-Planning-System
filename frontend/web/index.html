@@ -1,0 +1,1374 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>上海地铁 · 智慧路径规划</title>
+<script src="data.js"></script>
+<style>
+  /* ============ Reset & Base ============ */
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --navy: #1A2A4A;
+    --navy-light: #2A3F6A;
+    --red: #DC2F2F;
+    --red-light: #F04A4A;
+    --blue: #0088CC;
+    --blue-light: #E8F4FD;
+    --green: #00A870;
+    --bg: #F5F7FA;
+    --surface: #FFFFFF;
+    --text: #1A1A2E;
+    --text-secondary: #6B7280;
+    --border: #E5E7EB;
+    --shadow: 0 1px 3px rgba(0,0,0,0.06), 0 1px 2px rgba(0,0,0,0.04);
+    --shadow-lg: 0 10px 25px rgba(0,0,0,0.08);
+    --radius: 12px;
+    --radius-sm: 8px;
+    --transition: 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    --font: 'Noto Sans SC', -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+    --font-mono: 'JetBrains Mono', 'SF Mono', 'Fira Code', 'Consolas', monospace;
+  }
+  html { font-size: 16px; -webkit-font-smoothing: antialiased; }
+  body {
+    font-family: var(--font);
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+  }
+
+  /* ============ Typography ============ */
+  h1, h2, h3 { font-weight: 700; line-height: 1.2; }
+  h1 { font-size: 1.5rem; letter-spacing: -0.02em; }
+  h2 { font-size: 1.125rem; }
+  h3 { font-size: 0.938rem; color: var(--text-secondary); font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; }
+  p { line-height: 1.6; }
+
+  /* ============ Header ============ */
+  header {
+    background: linear-gradient(135deg, var(--navy) 0%, #0F1D3A 100%);
+    color: #fff;
+    padding: 0 1.5rem;
+    height: 64px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    position: sticky;
+    top: 0;
+    z-index: 100;
+    box-shadow: 0 2px 12px rgba(0,0,0,0.15);
+  }
+  header .brand {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+  }
+  header .brand .logo {
+    width: 36px; height: 36px;
+    background: var(--red);
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 800;
+    font-size: 1.1rem;
+    flex-shrink: 0;
+  }
+  header .brand .sub { font-size: 0.75rem; opacity: 0.6; font-weight: 400; display: block; }
+  header .stats {
+    display: flex;
+    gap: 1.5rem;
+    font-size: 0.8rem;
+  }
+  header .stats span { opacity: 0.7; }
+  header .stats strong { opacity: 1; font-weight: 600; }
+
+  /* ============ Layout ============ */
+  .app-container {
+    display: flex;
+    flex: 1;
+    padding: 1.5rem;
+    gap: 1.5rem;
+    max-width: 1440px;
+    margin: 0 auto;
+    width: 100%;
+  }
+  .sidebar {
+    width: 400px;
+    min-width: 360px;
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+  }
+  .main-content {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+  }
+
+  /* ============ Card ============ */
+  .card {
+    background: var(--surface);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow);
+    padding: 1.25rem;
+    border: 1px solid var(--border);
+    transition: box-shadow var(--transition);
+  }
+  .card:hover { box-shadow: var(--shadow-lg); }
+  .card-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 1rem;
+  }
+
+  /* ============ Search ============ */
+  .search-group {
+    display: flex;
+    flex-direction: column;
+    gap: 0.625rem;
+  }
+  .search-field {
+    position: relative;
+  }
+  .search-field label {
+    display: block;
+    font-size: 0.813rem;
+    font-weight: 600;
+    color: var(--text-secondary);
+    margin-bottom: 0.375rem;
+  }
+  .search-field input {
+    width: 100%;
+    padding: 0.75rem 1rem 0.75rem 2.5rem;
+    border: 2px solid var(--border);
+    border-radius: var(--radius-sm);
+    font-size: 0.938rem;
+    font-family: var(--font);
+    background: var(--bg);
+    transition: border-color var(--transition), box-shadow var(--transition);
+    outline: none;
+  }
+  .search-field input:focus {
+    border-color: var(--blue);
+    box-shadow: 0 0 0 3px rgba(0,136,204,0.12);
+    background: var(--surface);
+  }
+  .search-field .icon {
+    position: absolute;
+    left: 0.75rem;
+    bottom: 0.75rem;
+    color: var(--text-secondary);
+    font-size: 1.1rem;
+    pointer-events: none;
+  }
+  .search-field .label-icon {
+    position: absolute;
+    left: 0.75rem;
+    bottom: 0.75rem;
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.625rem;
+    font-weight: 700;
+    color: #fff;
+    pointer-events: none;
+  }
+  .search-field .label-icon.origin { background: var(--green); }
+  .search-field .label-icon.dest { background: var(--red); }
+
+  /* ============ Suggestions ============ */
+  .suggestions {
+    position: absolute;
+    top: 100%;
+    left: 0;
+    right: 0;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    box-shadow: var(--shadow-lg);
+    max-height: 220px;
+    overflow-y: auto;
+    z-index: 50;
+    margin-top: 2px;
+    display: none;
+  }
+  .suggestions.active { display: block; }
+  .suggestions .item {
+    padding: 0.625rem 1rem;
+    cursor: pointer;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    transition: background var(--transition);
+    border-bottom: 1px solid var(--border);
+  }
+  .suggestions .item:last-child { border-bottom: none; }
+  .suggestions .item:hover { background: var(--blue-light); }
+  .suggestions .item .name { font-weight: 500; font-size: 0.875rem; }
+  .suggestions .item .lines { font-size: 0.75rem; color: var(--text-secondary); }
+  .suggestions .item .lines .tag {
+    display: inline-block;
+    background: var(--bg);
+    padding: 0.125rem 0.5rem;
+    border-radius: 4px;
+    margin-left: 0.25rem;
+    font-size: 0.688rem;
+    font-weight: 600;
+  }
+
+  /* ============ Route Options ============ */
+  .route-options {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0.625rem;
+  }
+  .route-options button {
+    padding: 0.75rem 1rem;
+    border: 2px solid var(--border);
+    border-radius: var(--radius-sm);
+    background: var(--surface);
+    cursor: pointer;
+    font-family: var(--font);
+    font-size: 0.813rem;
+    font-weight: 600;
+    transition: all var(--transition);
+    color: var(--text-secondary);
+  }
+  .route-options button:hover {
+    border-color: var(--blue);
+    color: var(--blue);
+    background: var(--blue-light);
+  }
+  .route-options button:active {
+    transform: scale(0.97);
+  }
+  .route-options button.primary {
+    border-color: var(--blue);
+    background: var(--blue);
+    color: #fff;
+  }
+  .route-options button.primary:hover {
+    background: #0077B3;
+    border-color: #0077B3;
+  }
+  .route-options button .badge {
+    display: block;
+    font-size: 0.688rem;
+    font-weight: 400;
+    opacity: 0.7;
+    margin-top: 0.125rem;
+  }
+  .route-options button:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+    transform: none;
+  }
+
+  /* ============ Results ============ */
+  .results-area {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+  }
+  .results-area:empty { display: none; }
+
+  .result-card {
+    background: var(--surface);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow);
+    border: 1px solid var(--border);
+    overflow: hidden;
+    animation: slideUp 0.35s ease;
+  }
+  @keyframes slideUp {
+    from { opacity: 0; transform: translateY(12px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  .result-header {
+    padding: 1rem 1.25rem;
+    background: linear-gradient(135deg, var(--navy), var(--navy-light));
+    color: #fff;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+  .result-header .route-summary {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+  }
+  .result-header .route-summary .station-name {
+    font-weight: 600;
+    font-size: 1rem;
+  }
+  .result-header .route-summary .arrow {
+    color: rgba(255,255,255,0.5);
+    font-size: 1.25rem;
+  }
+  .result-header .metrics {
+    display: flex;
+    gap: 1.5rem;
+  }
+  .result-header .metrics .metric {
+    text-align: center;
+  }
+  .result-header .metrics .metric .value {
+    font-weight: 700;
+    font-size: 1.25rem;
+    font-family: var(--font-mono);
+  }
+  .result-header .metrics .metric .label {
+    font-size: 0.688rem;
+    opacity: 0.7;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+  }
+
+  .result-body { padding: 1rem 1.25rem; }
+
+  /* ============ Route Timeline ============ */
+  .route-timeline {
+    position: relative;
+    padding-left: 2rem;
+  }
+  .route-timeline::before {
+    content: '';
+    position: absolute;
+    left: 8px;
+    top: 12px;
+    bottom: 12px;
+    width: 3px;
+    background: var(--border);
+    border-radius: 2px;
+  }
+  .timeline-item {
+    position: relative;
+    padding: 0.375rem 0;
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    animation: fadeIn 0.4s ease both;
+  }
+  @keyframes fadeIn {
+    from { opacity: 0; transform: translateX(-8px); }
+    to { opacity: 1; transform: translateX(0); }
+  }
+  .timeline-item .dot {
+    position: absolute;
+    left: -1.625rem;
+    width: 14px; height: 14px;
+    border-radius: 50%;
+    background: var(--blue);
+    border: 3px solid var(--blue-light);
+    flex-shrink: 0;
+    z-index: 1;
+  }
+  .timeline-item .dot.transfer { background: var(--red); border-color: #FDE8E8; }
+  .timeline-item .dot.start { background: var(--green); border-color: #E0F5EE; width: 16px; height: 16px; }
+  .timeline-item .dot.end { background: var(--navy); border-color: #D0D5DD; width: 16px; height: 16px; }
+  .timeline-item .station-info { flex: 1; }
+  .timeline-item .station-info .name { font-weight: 600; font-size: 0.875rem; }
+  .timeline-item .station-info .line-tag {
+    display: inline-block;
+    font-size: 0.688rem;
+    padding: 0.125rem 0.5rem;
+    border-radius: 4px;
+    font-weight: 600;
+    margin-left: 0.375rem;
+  }
+  .timeline-item .station-info .transfer-badge {
+    display: inline-block;
+    font-size: 0.688rem;
+    padding: 0.125rem 0.5rem;
+    background: #FEF3C7;
+    color: #92400E;
+    border-radius: 4px;
+    font-weight: 600;
+    margin-left: 0.375rem;
+  }
+  .timeline-item .time-info {
+    font-size: 0.75rem;
+    color: var(--text-secondary);
+    font-family: var(--font-mono);
+    white-space: nowrap;
+  }
+
+  /* ============ Transfer Flow ============ */
+  .transfer-flow {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.75rem;
+    background: var(--bg);
+    border-radius: var(--radius-sm);
+    margin: 0.5rem 0;
+    font-size: 0.813rem;
+    flex-wrap: wrap;
+  }
+  .transfer-flow .tf-station {
+    font-weight: 600;
+    color: var(--red);
+  }
+  .transfer-flow .tf-arrow { color: var(--text-secondary); font-size: 0.75rem; }
+
+  /* ============ Path Line Flow ============ */
+  .line-flow {
+    display: flex;
+    align-items: center;
+    gap: 0.375rem;
+    flex-wrap: wrap;
+    padding: 0.5rem 0;
+  }
+  .line-flow .lf-station {
+    font-size: 0.813rem;
+    font-weight: 500;
+  }
+  .line-flow .lf-sep {
+    width: 20px;
+    height: 2px;
+    border-radius: 1px;
+    opacity: 0.5;
+  }
+  .line-flow .lf-transfer {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
+    padding: 0.125rem 0.5rem;
+    background: #FEF3C7;
+    border-radius: 4px;
+    font-size: 0.688rem;
+    font-weight: 600;
+    color: #92400E;
+  }
+
+  /* ============ Empty State ============ */
+  .empty-state {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 3rem 1.5rem;
+    color: var(--text-secondary);
+    text-align: center;
+  }
+  .empty-state .icon { font-size: 3rem; margin-bottom: 1rem; opacity: 0.3; }
+  .empty-state h3 { color: var(--text-secondary); }
+  .empty-state p { font-size: 0.875rem; margin-top: 0.5rem; max-width: 320px; }
+
+  /* ============ Quick Select ============ */
+  .quick-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 0.5rem;
+    margin-top: 0.5rem;
+  }
+  .quick-grid button {
+    padding: 0.5rem;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    background: var(--surface);
+    cursor: pointer;
+    font-size: 0.75rem;
+    font-family: var(--font);
+    transition: all var(--transition);
+    color: var(--text-secondary);
+  }
+  .quick-grid button:hover {
+    border-color: var(--blue);
+    background: var(--blue-light);
+    color: var(--blue);
+  }
+
+  /* ============ Responsive ============ */
+  @media (max-width: 1024px) {
+    .app-container { flex-direction: column; }
+    .sidebar { width: 100%; min-width: unset; }
+    .app-container { padding: 1rem; }
+    header .stats { display: none; }
+  }
+  @media (max-width: 640px) {
+    .route-options { grid-template-columns: 1fr; }
+    .result-header { flex-direction: column; gap: 0.75rem; align-items: flex-start; }
+    .result-header .metrics { width: 100%; justify-content: space-around; }
+    .quick-grid { grid-template-columns: repeat(2, 1fr); }
+  }
+
+  /* ============ Scrollbar ============ */
+  ::-webkit-scrollbar { width: 6px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+  ::-webkit-scrollbar-thumb:hover { background: #B0B0B0; }
+
+  /* ============ Line colors ============ */
+  .line-1号线 { background: #D62B2B; color: #fff; }
+  .line-2号线 { background: #008C4A; color: #fff; }
+  .line-3号线 { background: #FAD107; color: #1A1A2E; }
+  .line-4号线 { background: #5B2C86; color: #fff; }
+  .line-5号线 { background: #8B4C96; color: #fff; }
+  .line-6号线 { background: #D55A2B; color: #fff; }
+  .line-7号线 { background: #EE6A9F; color: #fff; }
+  .line-8号线 { background: #008C9E; color: #fff; }
+  .line-9号线 { background: #6DC6DC; color: #1A1A2E; }
+  .line-10号线 { background: #C5AEC0; color: #1A1A2E; }
+  .line-11号线 { background: #7B2D26; color: #fff; }
+  .line-12号线 { background: #007C65; color: #fff; }
+  .line-13号线 { background: #E995C9; color: #1A1A2E; }
+  .line-14号线 { background: #9B8BC0; color: #fff; }
+  .line-15号线 { background: #C3A87C; color: #1A1A2E; }
+  .line-16号线 { background: #98D18B; color: #1A1A2E; }
+  .line-17号线 { background: #B0742E; color: #fff; }
+  .line-18号线 { background: #C6923C; color: #1A1A2E; }
+  .line-浦江线 { background: #B0B0B0; color: #1A1A2E; }
+  .line-市域机场线 { background: #6B7B8D; color: #fff; }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="brand">
+    <div class="logo">M</div>
+    <div>
+      <h1>上海地铁 · 路径规划</h1>
+      <span class="sub">Shanghai Metro · Route Planner</span>
+    </div>
+  </div>
+  <div class="stats">
+    <span>🚇 <strong id="statLines">0</strong> 条线路</span>
+    <span>📍 <strong id="statStations">0</strong> 个站点</span>
+    <span>🔗 <strong id="statEdges">0</strong> 条连接</span>
+  </div>
+</header>
+
+<div class="app-container">
+  <!-- Sidebar -->
+  <aside class="sidebar">
+    <div class="card">
+      <div class="card-header">
+        <h3>路径规划</h3>
+        <span style="font-size:0.75rem;color:var(--text-secondary)">Route Planning</span>
+      </div>
+      <div class="search-group">
+        <div class="search-field">
+          <label for="originInput">起点站 Origin</label>
+          <span class="label-icon origin">S</span>
+          <input type="text" id="originInput" placeholder="输入站点名称..." autocomplete="off">
+          <div class="suggestions" id="originSuggestions"></div>
+        </div>
+        <div class="search-field">
+          <label for="destInput">终点站 Destination</label>
+          <span class="label-icon dest">E</span>
+          <input type="text" id="destInput" placeholder="输入站点名称..." autocomplete="off">
+          <div class="suggestions" id="destSuggestions"></div>
+        </div>
+        <button id="swapBtn" style="
+          align-self: flex-end;
+          padding: 0.375rem 0.75rem;
+          border: 1px solid var(--border);
+          border-radius: var(--radius-sm);
+          background: var(--surface);
+          cursor: pointer;
+          font-size: 0.75rem;
+          font-family: var(--font);
+          color: var(--text-secondary);
+          transition: all var(--transition);
+        " onmouseover="this.style.borderColor='var(--blue)';this.style.color='var(--blue)'"
+          onmouseout="this.style.borderColor='var(--border)';this.style.color='var(--text-secondary)'"
+        >⇄ 交换起终点</button>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-header">
+        <h3>搜索偏好</h3>
+        <span style="font-size:0.75rem;color:var(--text-secondary)">Algorithm</span>
+      </div>
+      <div class="route-options">
+        <button id="btnFastest" class="primary">
+          ⚡ 最快路径
+          <span class="badge">总时间最短 · Dijkstra</span>
+        </button>
+        <button id="btnMinTransfer">
+          🔄 最少换乘
+          <span class="badge">换乘优先 · 时间次之</span>
+        </button>
+        <button id="btnTop3Time">
+          📊 TOP3 时间
+          <span class="badge">前3条最短时间候选</span>
+        </button>
+        <button id="btnTop3Transfer">
+          📊 TOP3 换乘
+          <span class="badge">前3条最少换乘候选</span>
+        </button>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-header">
+        <h3>快速选择</h3>
+        <span style="font-size:0.75rem;color:var(--text-secondary)">Frequent</span>
+      </div>
+      <div class="quick-grid">
+        <button onclick="setRoute('人民广场','虹桥火车站')">人民广场 → 虹桥火车站</button>
+        <button onclick="setRoute('浦东1号2号航站楼','虹桥火车站')">浦东机场→虹桥</button>
+        <button onclick="setRoute('上海火车站','上海南站')">上海站 → 上海南站</button>
+        <button onclick="setRoute('迪士尼','南京东路')">迪士尼 → 南京东路</button>
+      </div>
+    </div>
+  </aside>
+
+  <!-- Main -->
+  <main class="main-content">
+    <div class="card" style="flex:1;display:flex;flex-direction:column;">
+      <div class="card-header">
+        <h3>规划结果</h3>
+        <span style="font-size:0.75rem;color:var(--text-secondary)" id="resultStatus">等待查询</span>
+      </div>
+      <div class="results-area" id="resultsArea">
+        <div class="empty-state">
+          <div class="icon">🚇</div>
+          <h3>开始规划您的行程</h3>
+          <p>在左侧输入起点站和终点站，选择搜索方式即可获取最优地铁路径</p>
+        </div>
+      </div>
+    </div>
+  </main>
+</div>
+
+<script>
+// ============ Data Index ============
+const stations = STATION_DATA.stations;
+const edges = STATION_DATA.edges;
+
+// Build lookup maps
+const stationById = {};
+const stationNames = {};
+stations.forEach(s => {
+  stationById[s.id] = s;
+  if (!stationNames[s.n]) stationNames[s.n] = [];
+  stationNames[s.n].push(s);
+});
+
+// Build adjacency list
+const adj = {};
+edges.forEach(e => {
+  if (!adj[e.f]) adj[e.f] = [];
+  adj[e.f].push(e);
+});
+
+// Stats
+document.getElementById('statLines').textContent = [...new Set(stations.map(s => s.l))].length;
+document.getElementById('statStations').textContent = stations.length;
+document.getElementById('statEdges').textContent = edges.length;
+
+// ============ Station Search ============
+const originInput = document.getElementById('originInput');
+const destInput = document.getElementById('destInput');
+const originSuggest = document.getElementById('originSuggestions');
+const destSuggest = document.getElementById('destSuggestions');
+
+let selectedOrigin = null;
+let selectedDest = null;
+
+function getUniqueStationNames(keyword) {
+  const lower = keyword.toLowerCase();
+  const results = [];
+  // 反向优化：各线路站点独立显示
+  stations.forEach(s => {
+    if (s.n.toLowerCase().includes(lower)) {
+      results.push({
+        displayName: s.n + '（' + s.l + '）',
+        rawName: s.n,
+        lines: [s.l],
+        id: s.id,
+        lineName: s.l
+      });
+    }
+  });
+  return results;
+}
+
+function showSuggestions(input, container, onSelect) {
+  const val = input.value.trim();
+  if (!val) { container.classList.remove('active'); return; }
+  const items = getUniqueStationNames(val);
+  container.innerHTML = '';
+  if (items.length === 0) { container.classList.remove('active'); return; }
+  items.slice(0, 10).forEach(item => {
+    const div = document.createElement('div');
+    div.className = 'item';
+    div.innerHTML = `<span class="name">${item.displayName}</span><span class="lines"><span class="tag line-${item.lineName}">${item.lineName}</span></span>`;
+    div.addEventListener('click', () => {
+      input.value = item.displayName;
+      onSelect(item);
+      container.classList.remove('active');
+    });
+    container.appendChild(div);
+  });
+  container.classList.add('active');
+}
+
+originInput.addEventListener('input', () => {
+  selectedOrigin = null;
+  showSuggestions(originInput, originSuggest, item => { selectedOrigin = item; });
+});
+destInput.addEventListener('input', () => {
+  selectedDest = null;
+  showSuggestions(destInput, destSuggest, item => { selectedDest = item; });
+});
+
+document.addEventListener('click', e => {
+  if (!e.target.closest('.search-field')) {
+    originSuggest.classList.remove('active');
+    destSuggest.classList.remove('active');
+  }
+});
+
+// Swap
+document.getElementById('swapBtn').addEventListener('click', () => {
+  const o = originInput.value;
+  const d = destInput.value;
+  const so = selectedOrigin;
+  const sd = selectedDest;
+  originInput.value = d;
+  destInput.value = o;
+  selectedOrigin = sd;
+  selectedDest = so;
+});
+
+// Quick set
+function setRoute(origin, dest) {
+  const origStations = stationNames[origin];
+  const destStations = stationNames[dest];
+  if (!origStations || !destStations) {
+    document.getElementById('resultStatus').textContent = '站名不存在';
+    return;
+  }
+  originInput.value = origin;
+  destInput.value = dest;
+  selectedOrigin = { name: origin, rawName: origin, id: origStations[0].id };
+  selectedDest = { name: dest, rawName: dest, id: destStations[0].id };
+  findPath('time');
+}
+
+// ============ Binary Heap (Priority Queue) ============
+// Fast O(log n) push/pop, essential for Dijkstra performance on large graphs
+class BinaryHeap {
+  constructor(primaryIsTime) {
+    this.heap = [];
+    this.primaryIsTime = primaryIsTime;
+  }
+  size() { return this.heap.length; }
+  empty() { return this.heap.length === 0; }
+  push(pri, sec, id) {
+    this.heap.push({ pri, sec, id });
+    this._siftUp(this.heap.length - 1);
+  }
+  pop() {
+    if (this.heap.length === 1) return this.heap.pop();
+    const top = this.heap[0];
+    this.heap[0] = this.heap.pop();
+    this._siftDown(0);
+    return top;
+  }
+  _siftUp(idx) {
+    const h = this.heap;
+    while (idx > 0) {
+      const p = (idx - 1) >> 1;
+      if (this._less(idx, p)) { [h[idx], h[p]] = [h[p], h[idx]]; idx = p; }
+      else break;
+    }
+  }
+  _siftDown(idx) {
+    const h = this.heap;
+    const n = h.length;
+    while (true) {
+      let smallest = idx;
+      const l = (idx << 1) + 1, r = l + 1;
+      if (l < n && this._less(l, smallest)) smallest = l;
+      if (r < n && this._less(r, smallest)) smallest = r;
+      if (smallest === idx) break;
+      [h[idx], h[smallest]] = [h[smallest], h[idx]];
+      idx = smallest;
+    }
+  }
+  _less(i, j) {
+    const a = this.heap[i], b = this.heap[j];
+    return a.pri !== b.pri ? a.pri < b.pri : a.sec < b.sec;
+  }
+}
+
+// ============ Pathfinding ============
+
+/**
+ * 折叠同名连续中间站（如942→632→417→249 → 942→249）
+ * 保留段首（换乘起始站）和段尾（换入后的线路站），跳过中间过渡站
+ */
+function collapseSameNameStations(pathArr) {
+  if (pathArr.length < 3) return pathArr;
+  const result = [];
+  for (let i = 0; i < pathArr.length; i++) {
+    const curId = pathArr[i];
+    if (result.length === 0) {
+      result.push(curId);
+    } else {
+      const lastName = stationById[result[result.length - 1]]?.n;
+      const curName = stationById[curId]?.n;
+      if (curName === lastName) {
+        // 同名站：跳过中间过渡站
+        if (i + 1 < pathArr.length) {
+          const nextName = stationById[pathArr[i + 1]]?.n;
+          if (nextName === curName) {
+            continue; // 中间站 → 跳过
+          }
+          // 段尾 → 保留
+        }
+      }
+      result.push(curId);
+    }
+  }
+  return result;
+}
+
+function getStationId(name) {
+  if (!stationNames[name]) return null;
+  for (const s of stationNames[name]) {
+    if (s.o) return s.id;
+  }
+  return stationNames[name][0].id;
+}
+
+// Compute max station ID for array sizing
+const MAX_STATION_ID = (() => {
+  let max = 0;
+  stations.forEach(s => { if (s.id > max) max = s.id; });
+  return max + 1;
+})();
+
+function dijkstra(startId, endId, primaryIsTime, blockedEdges, forbiddenNodes) {
+  blockedEdges = blockedEdges || [];
+  forbiddenNodes = forbiddenNodes || [];
+  const INF = 99999999;
+
+  // Use flat arrays instead of Map for 10x faster access
+  const primary = new Int32Array(MAX_STATION_ID);
+  const secondary = new Int32Array(MAX_STATION_ID);
+  const prev = new Int32Array(MAX_STATION_ID);
+  const prevLine = new Array(MAX_STATION_ID);
+
+  // Initialize
+  for (let i = 0; i < MAX_STATION_ID; i++) {
+    primary[i] = INF;
+    secondary[i] = INF;
+    prev[i] = -1;
+  }
+
+  // Build numeric blocked set (faster than string concatenation)
+  const blockedSet = new Set();
+  for (let i = 0; i < blockedEdges.length; i++) {
+    blockedSet.add(blockedEdges[i][0] * 10000 + blockedEdges[i][1]);
+  }
+
+  // Build forbidden set
+  const forbiddenSet = new Set(forbiddenNodes);
+  forbiddenSet.delete(startId);
+  forbiddenSet.delete(endId);
+
+  // Binary heap priority queue
+  const pq = new BinaryHeap(primaryIsTime);
+
+  // Bug 1 (frontend): 有效终点ID（同名站视为到达）
+  let effectiveEndId = endId;
+
+  primary[startId] = 0;
+  secondary[startId] = 0;
+  prev[startId] = -1;
+  pq.push(0, 0, startId);
+
+  while (!pq.empty()) {
+    const top = pq.pop();
+    const curId = top.id;
+    const curPri = top.pri;
+    const curSec = top.sec;
+
+    // Skip stale entries
+    if (curPri > primary[curId] || curSec > secondary[curId]) continue;
+
+    // Early exit
+    if (curId === endId) {
+      effectiveEndId = endId;
+      break;
+    }
+
+    // Bug 1 (frontend): 到达与终点同名的站即视为到达目的地
+    const curStation = stationById[curId];
+    const endStation = stationById[endId];
+    if (curStation && endStation && curStation.n === endStation.n) {
+      effectiveEndId = curId;
+      break;
+    }
+
+    const neighbors = adj[curId];
+    if (!neighbors) continue;
+
+    for (let ei = 0; ei < neighbors.length; ei++) {
+      const edge = neighbors[ei];
+      const nextId = edge.t;
+
+      // Pruning
+      if (!stationById[nextId] || !stationById[nextId].o) continue;
+      if (nextId === prev[curId]) continue;
+      if (blockedSet.has(curId * 10000 + nextId)) continue;
+      if (forbiddenSet.has(nextId)) continue;
+
+      let newPri, newSec;
+      const lastLine = prevLine[curId] || '';
+
+      if (primaryIsTime) {
+        newPri = curPri + edge.tm;
+        const transfer = (prev[curId] !== -1 && lastLine !== '换乘' && lastLine !== edge.l) ? 1 : 0;
+        newSec = curSec + transfer;
+      } else {
+        const transfer = (prev[curId] !== -1 && lastLine !== '换乘' && lastLine !== edge.l) ? 1 : 0;
+        newPri = curPri + transfer;
+        newSec = curSec + edge.tm;
+      }
+
+      // Relaxation
+      if (newPri < primary[nextId] || (newPri === primary[nextId] && newSec < secondary[nextId])) {
+        primary[nextId] = newPri;
+        secondary[nextId] = newSec;
+        prev[nextId] = curId;
+        prevLine[nextId] = edge.l;
+        pq.push(newPri, newSec, nextId);
+      }
+    }
+  }
+
+  if (prev[effectiveEndId] === -1) return null;
+
+  // Reconstruct path (push + reverse instead of unshift)
+  let path = [];
+  let cur = effectiveEndId;
+  while (cur !== -1) {
+    path.push(cur);
+    cur = prev[cur];
+  }
+  path.reverse();
+
+  // Calculate metrics
+  let totalTime = 0;
+  let transferCount = 0;
+  const transferStations = [];
+  let currentLine = '';
+  let lastTransferStationName = '';  // Bug 2: 同名换乘合并
+
+  for (let i = 1; i < path.length; i++) {
+    const fromId = path[i - 1];
+    const toId = path[i];
+    const edges = adj[fromId];
+    if (!edges) continue;
+    // Find edge by iteration (faster than .find() in all browsers)
+    let edge = null;
+    for (let ei = 0; ei < edges.length; ei++) {
+      if (edges[ei].t === toId) { edge = edges[ei]; break; }
+    }
+    if (!edge) continue;
+    totalTime += edge.tm;
+
+    if (i === 1) {
+      currentLine = edge.l;
+    } else {
+      if (edge.l === '换乘') {
+        // Bug 2: 同名站内连续换乘合并为一次
+        const fromStationName = stationById[fromId] ? stationById[fromId].n : '';
+        if (fromStationName !== lastTransferStationName) {
+          transferCount++;
+          transferStations.push(fromId);
+          lastTransferStationName = fromStationName;
+        }
+        if (i + 1 < path.length) {
+          const nextEdges = adj[toId];
+          if (nextEdges) {
+            for (let ei = 0; ei < nextEdges.length; ei++) {
+              if (nextEdges[ei].t === path[i + 1]) { currentLine = nextEdges[ei].l; break; }
+            }
+          }
+        }
+      } else if (currentLine !== edge.l) {
+        // Bug 2: 同名站内连续换乘合并为一次
+        const fromStationName = stationById[fromId] ? stationById[fromId].n : '';
+        if (fromStationName !== lastTransferStationName) {
+          transferCount++;
+          transferStations.push(fromId);
+          lastTransferStationName = fromStationName;
+        }
+        currentLine = edge.l;
+      }
+    }
+  }
+
+  // 保持完整路径（不折叠），Yen's 算法需要完整路径计算阻断边
+      return { path, totalTime, transferCount, transferStations, primary: primary[effectiveEndId], secondary: secondary[effectiveEndId] };
+}
+
+function findPath(mode) {
+  const resultsArea = document.getElementById('resultsArea');
+  const resultStatus = document.getElementById('resultStatus');
+
+  if (!selectedOrigin || !selectedDest) {
+    resultsArea.innerHTML = `<div class="empty-state"><div class="icon">⚠️</div><h3>请选择起终点</h3><p>使用搜索框输入站点名称，从下拉列表中选择</p></div>`;
+    resultStatus.textContent = '未选择';
+    return;
+  }
+
+  const startId = getStationId(selectedOrigin.rawName || selectedOrigin.name);
+  const endId = getStationId(selectedDest.rawName || selectedDest.name);
+  if (!startId || !endId) {
+    resultsArea.innerHTML = `<div class="empty-state"><div class="icon">⚠️</div><h3>站点不可用</h3><p>所选站点可能已关闭或不存在</p></div>`;
+    resultStatus.textContent = '错误';
+    return;
+  }
+
+  if (startId === endId) {
+    resultsArea.innerHTML = `<div class="empty-state"><div class="icon">📍</div><h3>起点和终点相同</h3><p>请选择不同的站点</p></div>`;
+    resultStatus.textContent = '相同站点';
+    return;
+  }
+
+  resultStatus.textContent = '计算中...';
+
+  // Use setTimeout to allow UI update
+  setTimeout(() => {
+    try {
+      let results = [];
+
+      if (mode === 'time') {
+        const r = dijkstra(startId, endId, true, [], []);
+        if (r) results = [r];
+      } else if (mode === 'transfer') {
+        const r = dijkstra(startId, endId, false, [], []);
+        if (r) results = [r];
+      } else if (mode === 'top3time') {
+        results = yenKShortest(startId, endId, true, 3);
+      } else if (mode === 'top3transfer') {
+        results = yenKShortest(startId, endId, false, 3);
+      }
+
+      if (results.length === 0) {
+        resultsArea.innerHTML = `<div class="empty-state"><div class="icon">🚫</div><h3>无法到达</h3><p>起点到终点之间没有可通行的路径</p></div>`;
+        resultStatus.textContent = '不可达';
+        return;
+      }
+
+      renderResults(results, mode, selectedOrigin.rawName, selectedDest.rawName);
+      resultStatus.textContent = `找到 ${results.length} 条路径`;
+    } catch (e) {
+      resultsArea.innerHTML = `<div class="empty-state"><div class="icon">❌</div><h3>计算错误</h3><p>${e.message}</p></div>`;
+      resultStatus.textContent = '错误';
+    }
+  }, 50);
+}
+
+// ============ Yen's K-Shortest Paths ============
+function yenKShortest(startId, endId, primaryIsTime, K) {
+  const finalPaths = [];
+
+  const first = dijkstra(startId, endId, primaryIsTime, [], []);
+  if (!first) return finalPaths;
+  finalPaths.push(first);
+
+  // Pre-allocated arrays for reuse
+  const heap = [];
+  const isSamePath = (a, b) => {
+    if (a.path.length !== b.path.length) return false;
+    for (let i = 0; i < a.path.length; i++) {
+      if (a.path[i] !== b.path[i]) return false;
+    }
+    return true;
+  };
+
+  for (let k = 1; k < K; k++) {
+    const prevPath = finalPaths[k - 1];
+    const prevStations = prevPath.path;
+
+    for (let i = 0; i + 1 < prevStations.length; i++) {
+      const spurNode = prevStations[i];
+
+      // Build root path & forbidden nodes in one pass
+      const rootPath = [];
+      const forbiddenNodes = [];
+      for (let t = 0; t <= i; t++) {
+        rootPath.push(prevStations[t]);
+        if (t < i) forbiddenNodes.push(prevStations[t]);
+      }
+
+      // Build blocked edges: check all finalized paths for same prefix
+      const blockedEdges = [];
+      for (let p = 0; p < finalPaths.length; p++) {
+        const fp = finalPaths[p].path;
+        if (fp.length <= i) continue;
+        let rootMatches = true;
+        for (let t = 0; t <= i; t++) {
+          if (fp[t] !== rootPath[t]) { rootMatches = false; break; }
+        }
+        if (rootMatches && fp.length > i + 1) {
+          blockedEdges.push([fp[i], fp[i + 1]]);
+        }
+      }
+
+      const spurResult = dijkstra(spurNode, endId, primaryIsTime, blockedEdges, forbiddenNodes);
+      if (!spurResult) continue;
+
+      // Merge: rootPath + spurResult.path[1..]
+      let fullPath = rootPath;
+      for (let s = 1; s < spurResult.path.length; s++) {
+        fullPath.push(spurResult.path[s]);
+      }
+
+      // Recalculate metrics for merged path (use local loop, no .find())
+      let totalTime = 0, transferCount = 0;
+      const transferStations = [];
+      let currentLine = '';
+      let lastTransferStationName = '';  // Bug 2: 同名换乘合并
+      for (let j = 1; j < fullPath.length; j++) {
+        const edges = adj[fullPath[j - 1]];
+        if (!edges) continue;
+        let fe = null;
+        for (let ei = 0; ei < edges.length; ei++) {
+          if (edges[ei].t === fullPath[j]) { fe = edges[ei]; break; }
+        }
+        if (!fe) continue;
+        totalTime += fe.tm;
+        if (j === 1) {
+          currentLine = fe.l;
+        } else {
+          if (fe.l === '换乘') {
+            // Bug 2: 同名站内连续换乘合并为一次
+            const fromName = stationById[fullPath[j - 1]] ? stationById[fullPath[j - 1]].n : '';
+            if (fromName !== lastTransferStationName) {
+              transferCount++;
+              transferStations.push(fullPath[j - 1]);
+              lastTransferStationName = fromName;
+            }
+            if (j + 1 < fullPath.length) {
+              const nextEdges = adj[fullPath[j]];
+              if (nextEdges) {
+                for (let ei = 0; ei < nextEdges.length; ei++) {
+                  if (nextEdges[ei].t === fullPath[j + 1]) { currentLine = nextEdges[ei].l; break; }
+                }
+              }
+            }
+          } else if (currentLine !== fe.l) {
+            // Bug 2: 同名站内连续换乘合并为一次
+            const fromName = stationById[fullPath[j - 1]] ? stationById[fullPath[j - 1]].n : '';
+            if (fromName !== lastTransferStationName) {
+              transferCount++;
+              transferStations.push(fullPath[j - 1]);
+              lastTransferStationName = fromName;
+            }
+            currentLine = fe.l;
+          }
+        }
+      }
+
+      // 保持完整路径（不折叠），Yen's 算法需要完整路径计算阻断边
+      const mergedResult = {
+        path: fullPath,
+        totalTime,
+        transferCount,
+        transferStations,
+        primary: primaryIsTime ? totalTime : transferCount,
+        secondary: primaryIsTime ? transferCount : totalTime
+      };
+
+      // Dedup against heap
+      let dup = false;
+      for (let h = 0; h < heap.length; h++) {
+        if (isSamePath(mergedResult, heap[h])) { dup = true; break; }
+      }
+      if (!dup) heap.push(mergedResult);
+    }
+
+    if (heap.length === 0) break;
+
+    // Take best from heap
+    let bestIdx = 0;
+    for (let h = 1; h < heap.length; h++) {
+      const a = heap[bestIdx], b = heap[h];
+      const aBetter = a.primary < b.primary || (a.primary === b.primary && a.secondary < b.secondary);
+      if (!aBetter) bestIdx = h;
+    }
+    finalPaths.push(heap[bestIdx]);
+    heap[bestIdx] = heap[heap.length - 1];
+    heap.pop();
+  }
+
+  return finalPaths;
+}
+
+// ============ Render Results ============
+function renderResults(results, mode, originName, destName) {
+  const area = document.getElementById('resultsArea');
+  area.innerHTML = '';
+
+  const isTop3 = mode === 'top3time' || mode === 'top3transfer';
+
+  const emptyState = document.querySelector('.empty-state');
+  if (emptyState) emptyState.remove();
+
+  // Title card
+  if (isTop3) {
+    const titleCard = document.createElement('div');
+    titleCard.className = 'result-card';
+    titleCard.style.animationDelay = '0s';
+    titleCard.innerHTML = `
+      <div class="result-header" style="background:linear-gradient(135deg,#1A2A4A,#2A3F6A);padding:0.75rem 1.25rem;">
+        <div style="font-weight:600;font-size:0.938rem;">
+          ${originName} <span style="opacity:0.5;margin:0 0.5rem;">→</span> ${destName}
+        </div>
+        <div style="font-size:0.75rem;opacity:0.7;">
+          ${mode === 'top3time' ? '前3条 · 最短时间' : '前3条 · 最少换乘'}
+        </div>
+      </div>
+    `;
+    area.appendChild(titleCard);
+  }
+
+  results.forEach((r, idx) => {
+    // 折叠同名连续中间站（仅用于显示）
+    r.path = collapseSameNameStations(r.path);
+
+    const card = document.createElement('div');
+    card.className = 'result-card';
+    card.style.animationDelay = `${idx * 0.1}s`;
+
+    const stNames = r.path.map(id => stationById[id].n);
+    const stLines = r.path.map(id => stationById[id].l);
+
+    // Build timeline HTML
+    let timelineHtml = '<div class="route-timeline">';
+    let currentLine = '';
+
+    r.path.forEach((id, i) => {
+      const s = stationById[id];
+      let dotClass = 'dot';
+      let extra = '';
+      if (i === 0) dotClass += ' start';
+      else if (i === r.path.length - 1) dotClass += ' end';
+      else if (r.transferStations.includes(id)) dotClass += ' transfer';
+
+      let lineTag = `<span class="line-tag line-${s.l}">${s.l}</span>`;
+      let transferBadge = '';
+      if (i > 0 && r.transferStations.includes(id)) {
+        transferBadge = `<span class="transfer-badge">🔄 换乘</span>`;
+      }
+
+      timelineHtml += `
+        <div class="timeline-item" style="animation-delay:${(idx * 0.1 + i * 0.03)}s">
+          <div class="${dotClass}"></div>
+          <div class="station-info">
+            <span class="name">${s.n}</span>
+            ${lineTag}
+            ${transferBadge}
+          </div>
+          ${i > 0 ? `<span class="time-info">+${(()=>{const e=(adj[r.path[i-1]]||[]).find(ee=>ee.t===id);return e?e.tm:'5'})()}min</span>` : '<span class="time-info" style="color:var(--green)">起点</span>'}
+        </div>
+      `;
+    });
+    timelineHtml += '</div>';
+
+    // Transfer flow
+    let transferHtml = '';
+    if (r.transferCount > 0) {
+      transferHtml = '<div class="transfer-flow"><span style="font-weight:600">换乘方案：</span>';
+      r.transferStations.forEach((tsId, ti) => {
+        const ts = stationById[tsId];
+        if (ti > 0) transferHtml += '<span class="tf-arrow">→</span>';
+        transferHtml += `<span class="tf-station">${ts.n}</span>`;
+      });
+      transferHtml += '</div>';
+    }
+
+    // Line flow
+    let lineFlowHtml = '<div class="line-flow">';
+    const uniqueLines = [...new Set(stLines)];
+    uniqueLines.forEach((ln, li) => {
+      if (li > 0) lineFlowHtml += '<span class="lf-transfer">换乘</span>';
+      const stationsOnLine = r.path.filter(id => stationById[id].l === ln).map(id => stationById[id].n);
+      lineFlowHtml += `<span class="lf-station">${stationsOnLine.join(' → ')}</span>`;
+    });
+    lineFlowHtml += '</div>';
+
+    const headerLabel = isTop3 ? `方案 ${idx + 1}` : (r.transferCount === 0 ? '直达' : `${r.transferCount} 次换乘`);
+
+    card.innerHTML = `
+      <div class="result-header">
+        <div class="route-summary">
+          <span class="station-name">${stNames[0]}</span>
+          <span class="arrow">→</span>
+          <span class="station-name">${stNames[stNames.length - 1]}</span>
+        </div>
+        <div class="metrics">
+          <div class="metric">
+            <div class="value" style="color:#4ADE80">${r.totalTime}</div>
+            <div class="label">分钟</div>
+          </div>
+          <div class="metric">
+            <div class="value" style="color:#FBBF24">${r.transferCount}</div>
+            <div class="label">换乘</div>
+          </div>
+          <div class="metric">
+            <div class="value">${r.path.length}</div>
+            <div class="label">站</div>
+          </div>
+        </div>
+      </div>
+      <div class="result-body">
+        ${lineFlowHtml}
+        ${transferHtml}
+        ${timelineHtml}
+      </div>
+    `;
+
+    area.appendChild(card);
+  });
+}
+
+// ============ Button Handlers ============
+document.getElementById('btnFastest').addEventListener('click', () => {
+  document.querySelectorAll('.route-options button').forEach(b => b.classList.remove('primary'));
+  document.getElementById('btnFastest').classList.add('primary');
+  findPath('time');
+});
+document.getElementById('btnMinTransfer').addEventListener('click', () => {
+  document.querySelectorAll('.route-options button').forEach(b => b.classList.remove('primary'));
+  document.getElementById('btnMinTransfer').classList.add('primary');
+  findPath('transfer');
+});
+document.getElementById('btnTop3Time').addEventListener('click', () => {
+  document.querySelectorAll('.route-options button').forEach(b => b.classList.remove('primary'));
+  document.getElementById('btnTop3Time').classList.add('primary');
+  findPath('top3time');
+});
+document.getElementById('btnTop3Transfer').addEventListener('click', () => {
+  document.querySelectorAll('.route-options button').forEach(b => b.classList.remove('primary'));
+  document.getElementById('btnTop3Transfer').classList.add('primary');
+  findPath('top3transfer');
+});
+
+// Enter key triggers search
+originInput.addEventListener('keydown', e => { if (e.key === 'Enter') destInput.focus(); });
+destInput.addEventListener('keydown', e => { if (e.key === 'Enter' && selectedOrigin && selectedDest) findPath('time'); });
+</script>
+</body>
+</html>

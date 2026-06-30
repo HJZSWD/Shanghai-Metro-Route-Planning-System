@@ -1,8 +1,40 @@
+# =========================================
+# 上海地铁线路查询系统 .gitignore
+# =========================================
+
+# --- 编译产物 ---
 *.exe
+*.o
 *.obj
 *.lib
+*.dll
+*.exp
+*.pdb
+*.ilk
+
+# --- IDE / 编辑器 ---
+.idea/
 .vscode/
 .trae/
-__pycache__/
+*.suo
+*.user
+*.sln.docstates
+
+# --- Word 临时文件 ---
 ~$*.docx
+
+# --- 编译缓存 ---
+.scon*
+.gdb_history
+
+# --- Python 临时文件 ---
+__pycache__/
+*.pyc
+*.pyo
+
+# --- 系统文件 ---
+Thumbs.db
+.DS_Store
+
+# --- 个人记录 ---
 用户AI对话记录.md
