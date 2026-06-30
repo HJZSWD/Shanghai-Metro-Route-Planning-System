@@ -4,7 +4,6 @@
 
 # --- 编译产物 ---
 *.exe
-!metro.exe
 !backend-service.exe
 *.o
 *.obj
